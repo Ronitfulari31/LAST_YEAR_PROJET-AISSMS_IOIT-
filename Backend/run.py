@@ -36,7 +36,40 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = create_app()
-# Blueprints will be registered inside main
+
+def register_blueprints(flask_app):
+    """
+    Register all API blueprints.
+
+    Important: this must run at import time too (not only under __main__),
+    otherwise production servers like gunicorn/waitress that import `app`
+    won't have any routes registered.
+    """
+    from app.routes.auth import auth_bp
+    from app.routes.documents import documents_bp
+    from app.routes.reports import reports_bp
+    from app.routes.settings import settings_bp
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.news import news_bp
+    from app.routes.translation_api import translation_bp
+    from app.routes.coordinator import coordinator_bp
+    from app.routes.intelli_search import intelli_search_bp
+    from app.routes.evaluation import evaluation_bp
+
+    flask_app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    flask_app.register_blueprint(documents_bp, url_prefix="/api/documents")
+    flask_app.register_blueprint(reports_bp, url_prefix="/api")
+    flask_app.register_blueprint(settings_bp, url_prefix="/api")
+    flask_app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+    flask_app.register_blueprint(news_bp, url_prefix="/api/news")
+    flask_app.register_blueprint(translation_bp, url_prefix="/api/translation")
+    flask_app.register_blueprint(coordinator_bp)
+    flask_app.register_blueprint(intelli_search_bp, url_prefix="/api/intelli-search")
+    flask_app.register_blueprint(evaluation_bp, url_prefix="/api/evaluations")
+
+
+# Ensure routes exist even when importing `app`
+register_blueprints(app)
 
 
 @app.route("/api/nlp-features", methods=["GET"])
@@ -113,30 +146,7 @@ if __name__ == "__main__":
     # Pause background work as per user request (have dataset already)
     start_paused = True
 
-    # ---------------------------------------------------------
-    # DEFERRED BLUEPRINT REGISTRATION
-    # ---------------------------------------------------------
-    from app.routes.auth import auth_bp
-    from app.routes.documents import documents_bp
-    from app.routes.reports import reports_bp
-    from app.routes.settings import settings_bp
-    from app.routes.dashboard import dashboard_bp
-    from app.routes.news import news_bp
-    from app.routes.translation_api import translation_bp
-    from app.routes.coordinator import coordinator_bp
-    from app.routes.intelli_search import intelli_search_bp
-    from app.routes.evaluation import evaluation_bp
-
-    app.register_blueprint(auth_bp, url_prefix="/api/auth")
-    app.register_blueprint(documents_bp, url_prefix="/api/documents")
-    app.register_blueprint(reports_bp, url_prefix="/api")
-    app.register_blueprint(settings_bp, url_prefix="/api")
-    app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
-    app.register_blueprint(news_bp, url_prefix="/api/news")
-    app.register_blueprint(translation_bp, url_prefix="/api/translation")
-    app.register_blueprint(coordinator_bp)
-    app.register_blueprint(intelli_search_bp, url_prefix="/api/intelli-search")
-    app.register_blueprint(evaluation_bp, url_prefix="/api/evaluations")
+    # Blueprints are already registered above for all run modes.
 
     # ---------------------------------------------------------
     # DEFERRED MODEL WARMUP (Background Thread)
@@ -208,7 +218,8 @@ if __name__ == "__main__":
     if start_paused:
         scheduler.pause()
     
-    Thread(target=scheduler.start, daemon=True).start()
+    # Thread(target=scheduler.start, daemon=True).start()
+    logger.info("⏸️ RSS Scheduler disabled by me")
     
     # ---------------------------------------------------------
     # START BACKGROUND NLP WORKER (Async)
@@ -221,7 +232,7 @@ if __name__ == "__main__":
         worker.run()
 
     # Thread(target=deferred_worker_start, daemon=True).start()
-    logger.info("⏸️ Background worker disabled by user request")
+    logger.info("⏸️ Background worker disabled by me")
 
     app.run(
         debug=os.getenv("FLASK_DEBUG", True),

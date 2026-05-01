@@ -7,7 +7,14 @@ def explain_result(doc, query_context):
 
     # 1. Category relevance
     category_scores = query_context.get("category_scores", {})
-    category = (doc.get("category") or doc.get("inferred_category") or "").lower()
+    
+    # Safely extract category string (handle simple string vs complex dict)
+    raw_cat = doc.get("category") or doc.get("inferred_category")
+    category = ""
+    if isinstance(raw_cat, dict):
+        category = raw_cat.get("value", raw_cat.get("primary", "")).lower()
+    elif isinstance(raw_cat, str):
+        category = raw_cat.lower()
     if category and category_scores.get(category, 0) > 0.6:
         explanations.append(f"Matches your topic interest ({category.title()})")
 

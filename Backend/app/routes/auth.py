@@ -175,9 +175,15 @@ def login():
         username = data['username'].strip()
         password = data['password']
         
-        logger.info(f"Finding user: {username}")
-        # Find user by username
-        user = current_app.db.users.find_one({'username': username})
+        identifier = username
+        logger.info(f"Finding user by username/email: {identifier}")
+        # Allow login via username OR email (frontend labels this as "Email Access")
+        user = current_app.db.users.find_one({
+            '$or': [
+                {'username': identifier},
+                {'email': identifier.lower()}
+            ]
+        })
         
         if not user:
             logger.warning(f"User not found: {username}")
@@ -382,24 +388,41 @@ def google_auth():
             }), 500
         
         data = request.get_json()
-        if not data or not data.get('credential'):
+        if not data or (not data.get('credential') and not data.get('access_token')):
             return jsonify({
                 'error': 'Missing credential',
-                'message': 'Google credential token is required'
+                'message': 'Provide either `credential` (ID token) or `access_token`'
             }), 400
         
-        # Verify Google token
-        from google.oauth2 import id_token
-        from google.auth.transport import requests as google_requests
         import os
         
         try:
-            # Verify the token
-            idinfo = id_token.verify_oauth2_token(
-                data['credential'],
-                google_requests.Request(),
-                os.getenv('GOOGLE_CLIENT_ID')
-            )
+            if data.get("credential"):
+                # Verify ID token (Google Identity Services)
+                from google.oauth2 import id_token
+                from google.auth.transport import requests as google_requests
+
+                idinfo = id_token.verify_oauth2_token(
+                    data['credential'],
+                    google_requests.Request(),
+                    os.getenv('GOOGLE_CLIENT_ID')
+                )
+            else:
+                # Access token path (e.g. @react-oauth/google useGoogleLogin)
+                import requests as http_requests
+
+                userinfo_resp = http_requests.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {data['access_token']}"},
+                    timeout=10,
+                )
+                if not userinfo_resp.ok:
+                    logger.error(f"Google userinfo failed: {userinfo_resp.status_code} {userinfo_resp.text}")
+                    return jsonify({
+                        'error': 'Invalid token',
+                        'message': 'Google access token verification failed'
+                    }), 401
+                idinfo = userinfo_resp.json()
             
             # Extract user information
             email = idinfo.get('email')

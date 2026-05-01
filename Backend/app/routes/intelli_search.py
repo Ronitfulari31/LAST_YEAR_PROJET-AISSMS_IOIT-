@@ -44,15 +44,23 @@ def search():
     scheduler = getattr(current_app, 'scheduler', None)
     worker = getattr(current_app, 'background_worker', None)
     
-    services_paused = False
+    # Remember if scheduler was already paused before we touched it
+    scheduler_was_running = False
+    worker_was_running = False
+    
     try:
         if scheduler:
-            scheduler.pause()
-            logger.info("⏸️  RSS Scheduler paused for IntelliSearch")
+            # RSSScheduler uses _paused, not .running
+            # We access the internal flag or we could add a property, but for now this fixes the crash
+            scheduler_was_running = not getattr(scheduler, '_paused', True) 
+            if scheduler_was_running:
+                scheduler.pause()
+                logger.info("⏸️  RSS Scheduler paused for IntelliSearch")
         if worker and hasattr(worker, 'pause'):
-            worker.pause()
-            logger.info("⏸️  NLP Worker paused for IntelliSearch")
-        services_paused = True
+            worker_was_running = getattr(worker, 'running', False)
+            if worker_was_running:
+                worker.pause()
+                logger.info("⏸️  NLP Worker paused for IntelliSearch")
     except Exception as e:
         logger.warning(f"Could not pause background services: {e}")
     
@@ -141,14 +149,13 @@ def search():
         }), 500
     
     finally:
-        # 🎯 PRIORITY MODE: Resume background services after search completes
-        if services_paused:
-            try:
-                if scheduler:
-                    scheduler.resume()
-                    logger.info("▶️  RSS Scheduler resumed after IntelliSearch")
-                if worker and hasattr(worker, 'resume'):
-                    worker.resume()
-                    logger.info("▶️  NLP Worker resumed after IntelliSearch")
-            except Exception as e:
-                logger.warning(f"Could not resume background services: {e}")
+        # 🎯 ONLY resume if WE paused it (respect manual pause state)
+        try:
+            if scheduler and scheduler_was_running:
+                scheduler.resume()
+                logger.info("▶️  RSS Scheduler resumed after IntelliSearch")
+            if worker and worker_was_running and hasattr(worker, 'resume'):
+                worker.resume()
+                logger.info("▶️  NLP Worker resumed after IntelliSearch")
+        except Exception as e:
+            logger.warning(f"Could not resume background services: {e}")

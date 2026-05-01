@@ -16,9 +16,16 @@ _bge_reranker = None
 def get_bge_reranker():
     global _bge_reranker
     if _bge_reranker is None:
+        # Fix for "Cannot copy out of meta tensor" error:
+        # We explicitly load to CPU first with low_cpu_mem_usage=False to ensure weights are materialized
         _bge_reranker = CrossEncoder(
             "BAAI/bge-reranker-v2-m3",
-            max_length=512
+            max_length=512,
+            automodel_args={
+                "device_map": None,         # Disable 'auto' to prevent meta device placement
+                "low_cpu_mem_usage": False, # Force full load
+                "trust_remote_code": True
+            }
         )
     return _bge_reranker
 

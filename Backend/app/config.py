@@ -17,7 +17,15 @@ class Config:
     
 
     # CORS
-    CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    _cors_default = ",".join([
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+    ])
+    CORS_ORIGINS = [o.strip() for o in os.getenv('CORS_ORIGINS', _cors_default).split(',') if o.strip()]
 
 class DevelopmentConfig(Config):
     """Development configuration"""

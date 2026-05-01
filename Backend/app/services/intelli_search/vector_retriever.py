@@ -42,14 +42,18 @@ def get_model():
             import torch
             import logging
             logger = logging.getLogger(__name__)
-            
-            if torch.cuda.is_available():
-                # Force "cuda" string to ensure consistent behavior
-                device = "cuda"
-                logger.info(f"🚀 GPU Acceleration detected. Forcing multilingual-e5-large on {device}")
+
+            forced_device = os.getenv("INTELLI_SEARCH_DEVICE", "").strip().lower()
+            if forced_device:
+                device = forced_device
+                logger.info(f"⚙️ INTELLI_SEARCH_DEVICE set. Forcing device={device}")
             else:
-                device = "cuda" 
-                logger.warning("🚨 GPU requested but CUDA is not available. System may crash if forced.")
+                if torch.cuda.is_available():
+                    device = "cuda"
+                    logger.info(f"🚀 GPU Acceleration detected. Loading multilingual-e5-large on {device}")
+                else:
+                    device = "cpu"
+                    logger.info("🧠 CUDA not available. Loading multilingual-e5-large on CPU")
 
             # MANUAL LOADING PATTERN (Mimics translation.py stability)
             try:

@@ -17,6 +17,15 @@ from app.coordinator import get_coordinator
 logger = logging.getLogger(__name__)
 news_bp = Blueprint('news', __name__)
 
+def require_db():
+    db = getattr(current_app, "db", None)
+    if db is None:
+        return None, (jsonify({
+            "status": "error",
+            "message": "MongoDB is not connected. Check MONGODB_URI / MONGODB_DB_NAME and backend logs."
+        }), 503)
+    return db, None
+
 
 # ---------------------------------------------------------
 # HELPER: GENERIC MISSING CHECK (UNCHANGED)
@@ -65,7 +74,9 @@ def list_news():
         limit = int(request.args.get('limit', 20))
         skip = (page - 1) * limit
 
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
         query = {
             "status": {"$in": ["partial", "fully_analyzed"]}
         }  # Only show processed articles
@@ -130,7 +141,9 @@ def list_news():
 @jwt_required()
 def get_article(doc_id):
     try:
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
         # doc = db.articles.find_one({'_id': ObjectId(doc_id)})
         doc = db.news_dataset.find_one({'_id': ObjectId(doc_id)})
         
@@ -173,7 +186,9 @@ def fetch_category_news():
             }), 400
 
         user_id = get_jwt_identity()
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
 
         # Map old API to new fetch_news
         # Don't hardcode language - let it be inferred or empty
@@ -220,7 +235,9 @@ def analyze_news_item(doc_id):
     coordinator.enter_priority_mode()
         
     try:
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
 
         # ALWAYS run FULL pipeline when user clicks "Run Deep Analysis"
         # 🔒 ATOMIC LOCK: Only proceed if status is not already 'processing'
@@ -431,7 +448,9 @@ def fetch_news_with_params():
     try:
         params = request.args.to_dict()
         user_id = get_jwt_identity()
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
 
         # Extract user-provided parameters separately
         def get_arg_list(key):
@@ -450,6 +469,13 @@ def fetch_news_with_params():
         # 🔹 Resolve context (for analytics/UI)
         # We pass request.args directly because resolve_context now handles MultiDict/dict correctly
         context = resolve_context(request.args, db=db)
+        
+        # Extract pagination params for infinite scroll
+        limit = request.args.get('limit', type=int) or 20  # Default 20 for smooth infinite scroll
+        cursor = request.args.get('cursor')
+        
+        context['limit'] = limit
+        context['cursor'] = cursor
         
         # Override context lists if provided
         if query_continents: context["continent"] = query_continents
@@ -514,7 +540,9 @@ def keyword_search():
         
         logger.info(f"Keyword search: query='{query}', detected_lang={detected_lang}, limit={limit}")
         
-        db = current_app.db
+        db, err = require_db()
+        if err:
+            return err
         
         # Build search query - only search processed articles
         search_conditions = []

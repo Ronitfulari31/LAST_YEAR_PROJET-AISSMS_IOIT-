@@ -62,7 +62,8 @@ def create_app(config_name='development'):
     # Initialize Extensions
     # -----------------------------------------------------
     cors_origins = app.config.get('CORS_ORIGINS', '*')
-    CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=True)
+    # Apply CORS globally (resource-regex matching can be easy to misconfigure).
+    CORS(app, origins=cors_origins, supports_credentials=True)
     JWTManager(app)
 
     # -----------------------------------------------------

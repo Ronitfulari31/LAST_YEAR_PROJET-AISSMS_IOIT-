@@ -20,7 +20,8 @@ import {
     Filter,
     X,
     MapPin,
-    Languages
+    Languages,
+    Check
 } from 'lucide-react';
 import { api } from '../services/api';
 import ArticleModal from './ArticleModal';
@@ -223,11 +224,11 @@ export default function NewsFeed() {
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({
         currentPage: 1,
-        itemsPerPage: 25,
+        itemsPerPage: 20,  // Smaller batches for infinite scroll
         totalLoaded: 0,
         hasMore: false,
         cursor: null,
-        cursorHistory: [] // Track cursors for backward navigation
+        isLoadingMore: false  // Track if currently loading more
     });
     const fetchingRef = useRef(false);
     const hasFetchedRef = useRef(false);
@@ -286,8 +287,8 @@ export default function NewsFeed() {
         }
     };
 
-    // Fetch news from backend
-    const fetchNews = async (cursor = null, isNext = true, overrideLimit = null) => {
+    // Fetch news from backend (infinite scroll version)
+    const fetchNews = async (cursor = null, append = false, overrideLimit = null) => {
         if (isSearching) return; // Don't fetch regular news while searching
         // Prevent duplicate calls
         if (fetchingRef.current) {
@@ -296,13 +297,15 @@ export default function NewsFeed() {
         }
 
         fetchingRef.current = true;
-        setLoading(true);
-        setError(null);
-
-        // Clear news when paginating to avoid showing stale content
-        if (cursor !== null) {
-            setNews([]);
+        
+        // Only show main loading on initial fetch
+        if (!append) {
+            setLoading(true);
+        } else {
+            setPagination(prev => ({ ...prev, isLoadingMore: true }));
         }
+        
+        setError(null);
 
         try {
             const params = {
@@ -328,25 +331,21 @@ export default function NewsFeed() {
 
             if (response.status === 'success') {
                 const fetchedNews = response.articles || [];
-                const blendedItems = fetchedNews;
 
-                setNews(blendedItems);
+                // APPEND articles for infinite scroll, or REPLACE for initial load
+                setNews(prev => append ? [...prev, ...fetchedNews] : fetchedNews);
 
-                // Update pagination with cursor tracking
+                // Update pagination for infinite scroll
                 setPagination(prev => {
                     const nextItems = response.articles?.length || 0;
-                    const isInitialFetch = cursor === null;
-                    const total = response.total || (isInitialFetch ? nextItems : prev.totalLoaded + nextItems);
+                    const isInitialFetch = !append;
 
                     return {
                         ...prev,
                         cursor: response.next_cursor || null,
                         hasMore: response.has_more || false,
-                        totalLoaded: total,
-                        currentPage: isInitialFetch ? 1 : (isNext ? prev.currentPage + 1 : Math.max(1, prev.currentPage - 1)),
-                        cursorHistory: isNext
-                            ? (isInitialFetch ? [] : [...prev.cursorHistory, cursor])
-                            : prev.cursorHistory.slice(0, -1)
+                        totalLoaded: isInitialFetch ? nextItems : prev.totalLoaded + nextItems,
+                        isLoadingMore: false
                     };
                 });
             }
@@ -356,7 +355,15 @@ export default function NewsFeed() {
             setNews([]);
         } finally {
             setLoading(false);
+            setPagination(prev => ({ ...prev, isLoadingMore: false }));
             fetchingRef.current = false;
+        }
+    };
+
+    // Load more articles for infinite scroll
+    const loadMoreArticles = () => {
+        if (pagination.hasMore && !fetchingRef.current && !pagination.isLoadingMore) {
+            fetchNews(pagination.cursor, true);  // append = true
         }
     };
 
@@ -378,10 +385,9 @@ export default function NewsFeed() {
                 ...prev,
                 currentPage: 1,
                 totalLoaded: 0,
-                cursorHistory: [],
                 cursor: null
             }));
-            fetchNews(null, true);
+            fetchNews(null, false);  // false = don't append, replace
         }
     }, [activeCategory]);
 
@@ -394,12 +400,28 @@ export default function NewsFeed() {
                 ...prev,
                 currentPage: 1,
                 totalLoaded: 0,
-                cursorHistory: [],
                 cursor: null
             }));
-            fetchNews(null, true);
+            fetchNews(null, false);  // false = don't append, replace
         }
     }, [filters]);
+
+    // Infinite scroll: detect when user scrolls near bottom
+    useEffect(() => {
+        const handleScroll = () => {
+            // Calculate if user is near bottom (within 800px)
+            const scrollPosition = window.innerHeight + window.scrollY;
+            const pageHeight = document.documentElement.scrollHeight;
+            const nearBottom = scrollPosition >= pageHeight - 800;
+
+            if (nearBottom && pagination.hasMore && !loading && !pagination.isLoadingMore && !isSearching) {
+                loadMoreArticles();
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [pagination.hasMore, loading, pagination.isLoadingMore, isSearching, pagination.cursor]);
 
     // Logic for filtered news (search is now handled by backend)
     const filteredNews = news;
@@ -877,6 +899,25 @@ export default function NewsFeed() {
                             ))}
                         </AnimatePresence>
                     </div>
+
+                    {/* Infinite Scroll Loading Indicator */}
+                    {pagination.isLoadingMore && (
+                        <div className="py-12 flex flex-col items-center justify-center">
+                            <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+                            <p className="text-gray-400 font-medium">Loading more articles...</p>
+                        </div>
+                    )}
+
+                    {/* End of Feed Indicator */}
+                    {!loading && !pagination.isLoadingMore && !pagination.hasMore && filteredNews.length > 0 && (
+                        <div className="py-12 text-center">
+                            <div className="w-16 h-16 bg-white/5 rounded-full border border-white/10 flex items-center justify-center mx-auto mb-4">
+                                <Check size={24} className="text-indigo-400" />
+                            </div>
+                            <p className="text-gray-400 font-medium">You've reached the end! 🎉</p>
+                            <p className="text-gray-500 text-sm mt-2">Loaded {pagination.totalLoaded} articles</p>
+                        </div>
+                    )}
                 </>
             )}
 
