@@ -63,6 +63,22 @@ def package():
         os.makedirs(os.path.join(backend_dst, 'uploads'), exist_ok=True)
         os.makedirs(os.path.join(backend_dst, 'outputs'), exist_ok=True)
         
+        # Read the active MONGODB_URI from dev .env if present
+        dev_mongodb_uri = "mongodb://localhost:27017/"
+        dev_env_path = os.path.join(backend_src, '.env')
+        if os.path.exists(dev_env_path):
+            try:
+                with open(dev_env_path, 'r') as env_file:
+                    for line in env_file:
+                        if line.strip().startswith('MONGODB_URI='):
+                            dev_mongodb_uri = line.strip().split('=', 1)[1].strip()
+                            # Clean surrounding quotes if any
+                            if dev_mongodb_uri.startswith(('"', "'")) and dev_mongodb_uri.endswith(('"', "'")):
+                                dev_mongodb_uri = dev_mongodb_uri[1:-1]
+                            break
+            except Exception:
+                pass
+
         # Create a standardized .env file for easy out-of-the-box local running
         with open(os.path.join(backend_dst, '.env'), 'w') as f:
             f.write("# Server Configuration\n")
@@ -72,7 +88,7 @@ def package():
             f.write("FLASK_HOST=0.0.0.0\n")
             f.write("FLASK_PORT=5000\n\n")
             f.write("# Database Configuration\n")
-            f.write("MONGODB_URI=mongodb://localhost:27017/\n")
+            f.write(f"MONGODB_URI={dev_mongodb_uri}\n")
             f.write("MONGODB_DB_NAME=news_sentiment_intelligence_db\n\n")
             f.write("# Security\n")
             f.write("SECRET_KEY=submission-secret-key-12345\n")
@@ -97,15 +113,13 @@ def package():
 
     # Setup the Database directory inside 1_Project_Code
     print("[4/5] Copying Database seed tools and schema configurations...")
-    # Sibling lookup (Database seeding assets are temporary in the original structure too)
-    # We will generate them fresh into the new folder
+    db_src = os.path.join(base_dir, 'Database')
     db_dst = os.path.join(output_1, 'Database')
-    os.makedirs(db_dst, exist_ok=True)
-    
-    # We will copy from the generated ones if they exist, or create them
-    # But since they were in root 1_Project_Code, we can copy them over before they are deleted
-    # Wait, we deleted them at the start! Let's write them programmatically inside this python script or copy them first.
-    # To be extremely clean, we will recreate them in Python below or move them!
+    if os.path.exists(db_src):
+        shutil.copytree(db_src, db_dst)
+    else:
+        os.makedirs(db_dst, exist_ok=True)
+        print("WARNING: Database source folder not found!")
     
     print("[5/5] Packaging process completed successfully!")
     print(f"Consolidated submission package generated at: {submission_dir}")

@@ -94,7 +94,8 @@ def main():
     else:
         print("INFO: No pre-configured virtual environment found in Backend. Creating a fresh one...")
         try:
-            subprocess.run([sys.executable, '-m', 'venv', os.path.join(backend_dir, 'venv')], check=True)
+            # Use 'python' instead of sys.executable to avoid compiled EXE infinite fork bomb
+            subprocess.run(['python', '-m', 'venv', os.path.join(backend_dir, 'venv')], check=True)
             venv_path = os.path.join(backend_dir, 'venv')
             python_executable = os.path.join(venv_path, 'Scripts', 'python.exe')
             print("INFO: Installing backend dependencies silently from requirements.txt...")

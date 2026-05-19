@@ -1,0 +1,273 @@
+{
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@insightpoint.ai",
+      "password_hash": "$2b$12$R9h/lIPzMRFh41TspG4sEOecUfyY7P4S6P1D8wH4T.P8G3v.z6J5y",
+      "role": "admin",
+      "is_active": true,
+      "settings": {
+        "theme": "dark",
+        "language": "en",
+        "notifications": true
+      }
+    },
+    {
+      "username": "ronit",
+      "email": "ronit@gmail.com",
+      "password_hash": "$2b$12$R9h/lIPzMRFh41TspG4sEOecUfyY7P4S6P1D8wH4T.P8G3v.z6J5y",
+      "role": "user",
+      "is_active": true,
+      "settings": {
+        "theme": "dark",
+        "language": "en",
+        "notifications": true
+      }
+    }
+  ],
+  "news_dataset": [
+    {
+      "title": "Assam Floods: Over 50,000 displaced as Brahmaputra river overflows in Dibrugarh",
+      "translated_title": "Assam Floods: Over 50,000 displaced as Brahmaputra river overflows in Dibrugarh",
+      "original_url": "https://www.bbc.com/news/world-asia-india-6893041",
+      "source": "BBC News",
+      "published_date": "2026-05-18T10:00:00.000Z",
+      "summary": "Heavy monsoon rains triggered severe flooding in Assam's Dibrugarh district. Authorities have set up 45 relief camps, but transportation has been completely cut off due to landslides on national highways.",
+      "translated_summary": "Heavy monsoon rains triggered severe flooding in Assam's Dibrugarh district. Authorities have set up 45 relief camps, but transportation has been completely cut off due to landslides on national highways.",
+      "image_url": "https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&q=80&w=400",
+      "language": "en",
+      "country": "India",
+      "continent": "global",
+      "category": "disaster",
+      "inferred_category": "disaster",
+      "category_confidence": 0.98,
+      "inferred_categories": ["disaster"],
+      "analyzed": true,
+      "status": "fully_analyzed",
+      "retry_count": 0,
+      "keywords": ["assam", "floods", "brahmaputra", "displaced", "relief camps", "monsoon"],
+      "locations": [
+        {
+          "text": "Assam",
+          "label": "LOC",
+          "latitude": 26.2006,
+          "longitude": 92.9376
+        },
+        {
+          "text": "Dibrugarh",
+          "label": "LOC",
+          "latitude": 27.4728,
+          "longitude": 94.912
+        }
+      ],
+      "sentiment": {
+        "label": "negative",
+        "confidence": 0.94,
+        "method": "RoBERTa",
+        "scores": {
+          "positive": 0.01,
+          "neutral": 0.05,
+          "negative": 0.94
+        }
+      }
+    },
+    {
+      "title": "बिहार में पुल का एक और हिस्सा ढहा, यातायात पूरी तरह से बाधित",
+      "translated_title": "Another part of bridge collapses in Bihar, traffic completely blocked",
+      "original_url": "https://www.jagran.com/bihar/patna-bridge-collapse-accident-2026",
+      "source": "Dainik Jagran",
+      "published_date": "2026-05-17T08:30:00.000Z",
+      "summary": "बिहार के भागलपुर में गंगा नदी पर निर्माणाधीन अगुआनी-सुल्तानगंज पुल का एक बड़ा हिस्सा ढह गया। यह तीसरी बार है जब यह पुल ढहा है। हादसे में कोई हताहत नहीं हुआ है, लेकिन यातायात पूरी तरह से बाधित है।",
+      "translated_summary": "A large portion of the under-construction Aguani-Sultanganj bridge over the Ganga river collapsed in Bihar's Bhagalpur. This is the third time this bridge has collapsed. There are no reports of casualties in the accident, but traffic is completely blocked.",
+      "image_url": "https://images.unsplash.com/photo-1590486803833-1c5dc8ddd4c8?auto=format&fit=crop&q=80&w=400",
+      "language": "hi",
+      "country": "India",
+      "continent": "global",
+      "category": "infrastructure",
+      "inferred_category": "infrastructure",
+      "category_confidence": 0.92,
+      "inferred_categories": ["infrastructure"],
+      "analyzed": true,
+      "status": "fully_analyzed",
+      "retry_count": 0,
+      "keywords": ["bihar", "bridge collapse", "bhagalpur", "ganga river", "traffic blocked"],
+      "locations": [
+        {
+          "text": "Bihar",
+          "label": "LOC",
+          "latitude": 25.0961,
+          "longitude": 85.3131
+        },
+        {
+          "text": "Bhagalpur",
+          "label": "LOC",
+          "latitude": 25.2425,
+          "longitude": 87.0145
+        }
+      ],
+      "sentiment": {
+        "label": "negative",
+        "confidence": 0.89,
+        "method": "RoBERTa",
+        "scores": {
+          "positive": 0.02,
+          "neutral": 0.09,
+          "negative": 0.89
+        }
+      }
+    },
+    {
+      "title": "四川阿坝州发生4.8级地震 暂无人员伤亡报告",
+      "translated_title": "A magnitude 4.8 earthquake occurred in Aba Prefecture, Sichuan, no casualties reported yet",
+      "original_url": "http://www.xinhuanet.com/society/2026-05-19/earthquake.htm",
+      "source": "Xinhua",
+      "published_date": "2026-05-19T02:15:00.000Z",
+      "summary": "中国地震台网正式测定：05月19日02时15分在四川阿坝州马尔康市发生4.8级地震，震源深度15千米。震中附近震感强烈，防震减灾局已启动应急响应，暂无人员伤亡及财产损失报告。",
+      "translated_summary": "China Earthquake Networks Center formally determined: a magnitude 4.8 earthquake occurred in Maerkang City, Aba Prefecture, Sichuan at 02:15 on May 19, with a focal depth of 15 kilometers. The tremor was strongly felt near the epicenter. The Earthquake Administration has initiated an emergency response. No casualties or property damage have been reported yet.",
+      "image_url": "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&q=80&w=400",
+      "language": "zh",
+      "country": "China",
+      "continent": "global",
+      "category": "disaster",
+      "inferred_category": "disaster",
+      "category_confidence": 0.99,
+      "inferred_categories": ["disaster"],
+      "analyzed": true,
+      "status": "fully_analyzed",
+      "retry_count": 0,
+      "keywords": ["sichuan", "earthquake", "aba prefecture", "maerkang", "emergency response"],
+      "locations": [
+        {
+          "text": "Sichuan",
+          "label": "LOC",
+          "latitude": 30.657,
+          "longitude": 104.066
+        },
+        {
+          "text": "Aba Prefecture",
+          "label": "LOC",
+          "latitude": 31.8998,
+          "longitude": 102.2218
+        }
+      ],
+      "sentiment": {
+        "label": "neutral",
+        "confidence": 0.85,
+        "method": "RoBERTa",
+        "scores": {
+          "positive": 0.05,
+          "neutral": 0.85,
+          "negative": 0.10
+        }
+      }
+    },
+    {
+      "title": "Government Approves $5B Expansion of National Highway Corridor in Southern States",
+      "translated_title": "Government Approves $5B Expansion of National Highway Corridor in Southern States",
+      "original_url": "https://www.financialexpress.com/infrastructure/national-highway-expansion-project/2026",
+      "source": "Financial Express",
+      "published_date": "2026-05-16T14:45:00.000Z",
+      "summary": "In a major boost to connectivity, the Central Government has cleared a mega $5 billion investment package to widen national highways across Tamil Nadu, Karnataka, and Andhra Pradesh, adding smart tolls and dedicated EV freight lanes.",
+      "translated_summary": "In a major boost to connectivity, the Central Government has cleared a mega $5 billion investment package to widen national highways across Tamil Nadu, Karnataka, and Andhra Pradesh, adding smart tolls and dedicated EV freight lanes.",
+      "image_url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=400",
+      "language": "en",
+      "country": "India",
+      "continent": "global",
+      "category": "infrastructure",
+      "inferred_category": "infrastructure",
+      "category_confidence": 0.95,
+      "inferred_categories": ["infrastructure"],
+      "analyzed": true,
+      "status": "fully_analyzed",
+      "retry_count": 0,
+      "keywords": ["highway expansion", "infrastructure", "tamil nadu", "karnataka", "andhra pradesh", "investment"],
+      "locations": [
+        {
+          "text": "Tamil Nadu",
+          "label": "LOC",
+          "latitude": 11.1271,
+          "longitude": 78.6569
+        },
+        {
+          "text": "Karnataka",
+          "label": "LOC",
+          "latitude": 15.3173,
+          "longitude": 75.7139
+        },
+        {
+          "text": "Andhra Pradesh",
+          "label": "LOC",
+          "latitude": 15.9129,
+          "longitude": 79.74
+        }
+      ],
+      "sentiment": {
+        "label": "positive",
+        "confidence": 0.91,
+        "method": "RoBERTa",
+        "scores": {
+          "positive": 0.91,
+          "neutral": 0.07,
+          "negative": 0.02
+        }
+      }
+    }
+  ],
+  "documents": [
+    {
+      "filename": "Assam_Flood_Assessment_Report.txt",
+      "file_type": ".txt",
+      "source": "file",
+      "raw_text": "ASSAM EMERGENCY MANAGEMENT DIVISION\nSTATUS UPDATE - MAY 2026\n\nSevere waterlogging reported in Silchar and surrounding localities. Over 100,000 households have lost power. Medical teams are deploying rafts to reach stranded elders in rural pockets. The primary bottleneck is the collapse of the connecting bridge near Lakhimpur, preventing heavy vehicle transit for emergency medical kits.",
+      "clean_text": "ASSAM EMERGENCY MANAGEMENT DIVISION STATUS UPDATE MAY 2026 Severe waterlogging reported in Silchar and surrounding localities Over 100000 households have lost power Medical teams are deploying rafts to reach stranded elders in rural pockets The primary bottleneck is the collapse of the connecting bridge near Lakhimpur preventing heavy vehicle transit for emergency medical kits",
+      "language": "en",
+      "translated_text": "ASSAM EMERGENCY MANAGEMENT DIVISION STATUS UPDATE MAY 2026 Severe waterlogging reported in Silchar and surrounding localities Over 100000 households have lost power Medical teams are deploying rafts to reach stranded elders in rural pockets The primary bottleneck is the collapse of the connecting bridge near Lakhimpur preventing heavy vehicle transit for emergency medical kits",
+      "translated_to_en": true,
+      "translation_engine": "None (Original English)",
+      "processed": true,
+      "processing_time": 1.25,
+      "pipeline_metrics": {
+        "preprocessing_time": 0.05,
+        "translation_time": 0.0,
+        "sentiment_time": 0.45,
+        "event_detection_time": 0.35,
+        "ner_time": 0.40
+      },
+      "sentiment": {
+        "label": "negative",
+        "confidence": 0.96,
+        "method": "RoBERTa",
+        "scores": {
+          "positive": 0.01,
+          "neutral": 0.03,
+          "negative": 0.96
+        }
+      },
+      "category": "disaster",
+      "event_type": "disaster",
+      "category_confidence": 0.94,
+      "event_confidence": 0.94,
+      "keywords": ["assam", "emergency", "waterlogging", "silchar", "bridge collapse", "lakhimpur"],
+      "locations": [
+        {
+          "text": "Assam",
+          "label": "LOC",
+          "latitude": 26.2006,
+          "longitude": 92.9376
+        },
+        {
+          "text": "Silchar",
+          "label": "LOC",
+          "latitude": 24.8333,
+          "longitude": 92.7789
+        },
+        {
+          "text": "Lakhimpur",
+          "label": "LOC",
+          "latitude": 27.2333,
+          "longitude": 94.1
+        }
+      ]
+    }
+  ]
+}
