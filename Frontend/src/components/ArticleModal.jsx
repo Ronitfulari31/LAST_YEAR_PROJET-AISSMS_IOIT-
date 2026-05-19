@@ -34,6 +34,7 @@ export default function ArticleModal({ isOpen, article, onClose }) {
     };
     const [analyzing, setAnalyzing] = useState(false);
     const [analysisResults, setAnalysisResults] = useState(null);
+    const [analysisRaw, setAnalysisRaw] = useState(null);
     const [error, setError] = useState(null);
     const [pipelineStage, setPipelineStage] = useState(0);
 
@@ -44,25 +45,61 @@ export default function ArticleModal({ isOpen, article, onClose }) {
             setError(null);
             setPipelineStage(0);
             
-            // Check if article is already analyzed
-            if (article.analyzed) {
-                // Fetch existing analysis
-                fetchAnalysis();
-            } else {
-                setAnalysisResults(null);
-            }
+            // Do NOT auto-fetch analysis on open.
+            // Only run/fetch analysis when user clicks the Analyze button.
+            setAnalysisResults(null);
+            setAnalysisRaw(null);
         }
     }, [isOpen, article?._id]);
 
-    const fetchAnalysis = async () => {
-        try {
-            const response = await api.getAnalysis(article._id);
-            if (response.status === 'success') {
-                setAnalysisResults(response.analysis);
-            }
-        } catch (err) {
-            console.error('Failed to fetch analysis:', err);
-        }
+    const normalizeAnalysisResponse = (res) => {
+        const analysis = res?.analysis || res?.data?.analysis || res?.result?.analysis || {};
+        const translated = res?.analysis_translated || res?.translated || {};
+        const targetLang = translated && typeof translated === 'object' ? Object.keys(translated)[0] : null;
+
+        const summaryText =
+            (res?.summary && (res.summary.text || res.summary.en || res.summary)) ||
+            analysis?.summary?.text ||
+            analysis?.summary?.en ||
+            analysis?.summary ||
+            (targetLang ? translated?.[targetLang]?.summary : null) ||
+            null;
+
+        const eventObj = analysis?.event || {};
+        const normalizedEvent = {
+            type: eventObj.type || eventObj.value || 'other',
+            confidence: typeof eventObj.confidence === 'number' ? eventObj.confidence : 0,
+            method: eventObj.method || eventObj.role || undefined
+        };
+
+        const locationObj = analysis?.location || {};
+        const normalizedLocation = {
+            country: locationObj.country || 'unknown',
+            state: locationObj.state || 'Unknown',
+            city: locationObj.city || 'Unknown',
+            continent: locationObj.continent || 'global',
+            confidence: typeof locationObj.confidence === 'number' ? locationObj.confidence : 0
+        };
+
+        const sentimentObj = analysis?.sentiment || {};
+        const normalizedSentiment = {
+            label: sentimentObj.label || 'neutral',
+            confidence: typeof sentimentObj.confidence === 'number' ? sentimentObj.confidence : 0,
+            scores: sentimentObj.scores || {}
+        };
+
+        return {
+            ...analysis,
+            summary: summaryText,
+            event: normalizedEvent,
+            location: normalizedLocation,
+            sentiment: normalizedSentiment,
+            keywords: Array.isArray(analysis?.keywords) ? analysis.keywords : [],
+            entities: Array.isArray(analysis?.entities) ? analysis.entities : [],
+            analysis_translated: translated,
+            content: res?.content || analysis?.content,
+            article: res?.article || analysis?.article
+        };
     };
 
     const startAnalysis = async () => {
@@ -71,29 +108,12 @@ export default function ArticleModal({ isOpen, article, onClose }) {
         setPipelineStage(0);
 
         try {
-            // Pipeline stages (matching backend logic)
-            const stages = [
-                'Content Extraction',
-                'Translation',
-                'Sentiment Analysis',
-                'Entity Recognition',
-                'Summarization',
-                'Classification',
-                'Bias Detection',
-                'Fact Verification'
-            ];
-
-            // Progress through stages for visual feedback
-            for (let i = 0; i < stages.length; i++) {
-                setPipelineStage(i + 1);
-                await new Promise(resolve => setTimeout(resolve, 600)); 
-            }
-
-            // Call real analysis API
+            // Buffer until backend finishes (no fake animation)
             const response = await api.analyzeArticle(article._id);
             
             if (response.status === 'success') {
-                setAnalysisResults(response.analysis);
+                setAnalysisRaw(response);
+                setAnalysisResults(normalizeAnalysisResponse(response));
                 // Also update article state locally if possible, but modal closure/reopen will handle it
             } else {
                 throw new Error(response.message || 'Analysis failed');
@@ -325,6 +345,58 @@ export default function ArticleModal({ isOpen, article, onClose }) {
                                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 block">AI Intelligence Summary</span>
                                                 <p className="text-gray-200 text-lg leading-relaxed">{getDisplayValue(analysisResults.summary)}</p>
                                             </div>
+
+                                            {/* Event + Location */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {/* Event */}
+                                                <div className="p-8 bg-gradient-to-br from-rose-900/20 to-red-900/20 rounded-[32px] border border-rose-500/20">
+                                                    <span className="text-[10px] font-black text-rose-300 uppercase tracking-widest mb-4 block">Event Classification</span>
+                                                    <div className="flex items-end justify-between mb-3">
+                                                        <h4 className="text-2xl font-black text-white capitalize">
+                                                            {analysisResults.event?.type || 'other'}
+                                                        </h4>
+                                                        <span className="text-rose-200 font-bold">
+                                                            {(((analysisResults.event?.confidence ?? 0) * 100)).toFixed(1)}%
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-gray-300 text-xs font-medium">
+                                                        {analysisResults.event?.method ? `Method: ${analysisResults.event.method}` : 'Method: unknown'}
+                                                    </p>
+                                                </div>
+
+                                                {/* Location */}
+                                                <div className="p-8 bg-gradient-to-br from-indigo-900/20 to-violet-900/20 rounded-[32px] border border-indigo-500/20">
+                                                    <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-4 block">Location Extraction</span>
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-gray-400 text-xs font-bold uppercase">Country</span>
+                                                            <span className="text-white font-black text-sm uppercase">{getDisplayValue(analysisResults.location?.country || 'unknown')}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-gray-400 text-xs font-bold uppercase">State</span>
+                                                            <span className="text-white font-black text-sm uppercase">{getDisplayValue(analysisResults.location?.state || 'Unknown')}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-gray-400 text-xs font-bold uppercase">City</span>
+                                                            <span className="text-white font-black text-sm uppercase">{getDisplayValue(analysisResults.location?.city || 'Unknown')}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="pt-4 mt-4 border-t border-white/10 flex items-center justify-between text-xs">
+                                                        <span className="text-gray-400 font-bold uppercase">Confidence</span>
+                                                        <span className="text-indigo-200 font-black">{(((analysisResults.location?.confidence ?? 0) * 100)).toFixed(1)}%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Cleaned content preview */}
+                                            {analysisResults.content?.cleaned && (
+                                                <div className="p-8 bg-white/5 rounded-[32px] border border-white/10">
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 block">Cleaned Content</span>
+                                                    <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap line-clamp-6">
+                                                        {analysisResults.content.cleaned}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -374,6 +446,8 @@ export default function ArticleModal({ isOpen, article, onClose }) {
                                             </div>
                                         </div>
                                     )}
+
+
                                 </div>
                             </div>
 

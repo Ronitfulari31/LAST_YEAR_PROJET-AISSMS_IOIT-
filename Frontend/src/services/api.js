@@ -122,8 +122,12 @@ export const api = {
             body: JSON.stringify({ query }),
         }),
 
-    analyzeArticle: (id, targetLang = 'en') =>
-        request(`/news/analyze/${id}?target_lang=${targetLang}`),
+    analyzeArticle: (id, targetLang) => {
+        // Only include target_lang when explicitly provided.
+        // This prevents noisy URLs like `...?target_lang=en` by default.
+        const suffix = targetLang ? `?target_lang=${encodeURIComponent(targetLang)}` : '';
+        return request(`/news/analyze/${id}${suffix}`);
+    },
 
     getAnalysis: (id) =>
         request(`/news/analyze/${id}`),

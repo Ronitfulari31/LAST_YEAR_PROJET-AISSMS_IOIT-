@@ -21,6 +21,7 @@ export default function ArticleDetail() {
     const [loading, setLoading] = useState(true);
     const [analyzing, setAnalyzing] = useState(false);
     const [analysisResults, setAnalysisResults] = useState(null);
+    const [analysisRaw, setAnalysisRaw] = useState(null);
     const [error, setError] = useState(null);
     const [showEnglish, setShowEnglish] = useState(true); // Toggle for English/Original language
     const [expandedGroups, setExpandedGroups] = useState({}); // Track which entity groups are expanded
@@ -74,13 +75,8 @@ export default function ArticleDetail() {
             if (response.status === 'success') {
                 setArticle(response.article);
 
-                // Check if already analyzed
-                if (response.article?.analyzed) {
-                    fetchAnalysis();
-                }
-                
-                // Auto-fetch removed to prevent unwanted API calls
-                // If the user wants to see analysis, they will click the button
+                // Do NOT auto-fetch analysis on page open.
+                // Analysis should only be fetched/triggered when user clicks the button.
             } else {
                 setError('Article not found');
             }
@@ -97,24 +93,75 @@ export default function ArticleDetail() {
             const response = await api.getAnalysis(id);
             if (response.status === 'success') {
                 console.log('📊 Existing Analysis Response:', response);
-
-                // Merge summary and translation from root if they exist
-                const fullAnalysis = {
-                    ...response.analysis,
-                    summary: response.summary || response.analysis?.summary,
-                    analysis_translated: response.analysis_translated || response.translated
-                };
-
-                setAnalysisResults(fullAnalysis);
+                setAnalysisRaw(response);
+                setAnalysisResults(normalizeAnalysisResponse(response));
             }
         } catch (err) {
             console.error('Failed to fetch analysis:', err);
         }
     };
 
+    const normalizeAnalysisResponse = (res) => {
+        const analysis = res?.analysis || res?.data?.analysis || res?.result?.analysis || {};
+        const translated = res?.analysis_translated || res?.translated || {};
+        const targetLang = translated && typeof translated === 'object' ? Object.keys(translated)[0] : null;
+
+        // Pick the best available summary text
+        const summaryText =
+            (res?.summary && (res.summary.text || res.summary.en || res.summary)) ||
+            analysis?.summary?.text ||
+            analysis?.summary?.en ||
+            analysis?.summary ||
+            (targetLang ? translated?.[targetLang]?.summary : null) ||
+            null;
+
+        const eventObj = analysis?.event || {};
+        const normalizedEvent = {
+            type: eventObj.type || eventObj.value || 'other',
+            confidence: typeof eventObj.confidence === 'number' ? eventObj.confidence : 0,
+            method: eventObj.method || eventObj.role || undefined
+        };
+
+        const locationObj = analysis?.location || {};
+        const normalizedLocation = {
+            country: locationObj.country || 'unknown',
+            state: locationObj.state || 'Unknown',
+            city: locationObj.city || 'Unknown',
+            continent: locationObj.continent || 'global',
+            confidence: typeof locationObj.confidence === 'number' ? locationObj.confidence : 0
+        };
+
+        const sentimentObj = analysis?.sentiment || {};
+        const normalizedSentiment = {
+            label: sentimentObj.label || 'neutral',
+            confidence: typeof sentimentObj.confidence === 'number' ? sentimentObj.confidence : 0,
+            scores: sentimentObj.scores || {}
+        };
+
+        // keywords: backend sometimes returns array of strings; UI supports that
+        const normalizedKeywords = Array.isArray(analysis?.keywords) ? analysis.keywords : [];
+
+        const normalizedEntities = Array.isArray(analysis?.entities) ? analysis.entities : [];
+
+        return {
+            ...analysis,
+            summary: summaryText,
+            event: normalizedEvent,
+            location: normalizedLocation,
+            sentiment: normalizedSentiment,
+            keywords: normalizedKeywords,
+            entities: normalizedEntities,
+            analysis_translated: translated,
+            content: res?.content || analysis?.content,
+            article: res?.article || analysis?.article
+        };
+    };
+
     const startAnalysis = async () => {
         setAnalyzing(true);
         setError(null);
+        setAnalysisResults(null);
+        setAnalysisRaw(null);
         setPipelineStatus({
             progress: 0,
             current_stage: 'Starting analysis...',
@@ -122,9 +169,11 @@ export default function ArticleDetail() {
         });
 
         try {
-            // Trigger analysis (non-blocking in some backend impls, but here we wait for the trigger)
-            await api.analyzeArticle(id);
-            // Polling is handled by useEffect
+            // Buffer: wait for backend result, then show everything.
+            const res = await api.analyzeArticle(id);
+            setAnalysisRaw(res);
+            setAnalysisResults(normalizeAnalysisResponse(res));
+            setAnalyzing(false);
         } catch (err) {
             console.error('Analysis trigger failed:', err);
             setError(err.message || 'Failed to start analysis');
@@ -259,82 +308,31 @@ export default function ArticleDetail() {
                 )}
 
                 {analyzing && (
-                    <div className="mb-12 p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-2xl font-black text-white flex items-center gap-3">
-                                <Loader2 className="animate-spin text-indigo-400" size={28} />
-                                {pipelineStatus.current_stage || 'Analyzing Article...'}
-                            </h3>
-                            <span className="px-4 py-2 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-xl font-black text-sm">
-                                {pipelineStatus.progress}% Complete
-                            </span>
-                        </div>
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+                        <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-md" />
+                        <div className="relative w-full max-w-xl p-10 bg-[#0f172a]/95 border border-white/10 rounded-[40px] shadow-2xl">
+                            <div className="flex items-center gap-4">
+                                <Loader2 className="animate-spin text-indigo-400" size={32} />
+                                <div className="flex-1">
+                                    <p className="text-white font-black text-xl">
+                                        {pipelineStatus.current_stage || 'Analyzing...'}
+                                    </p>
+                                    <p className="text-gray-400 font-bold text-sm">
+                                        Please wait — we’ll show results as soon as the backend finishes.
+                                    </p>
+                                </div>
+                                <div className="px-4 py-2 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded-xl font-black text-sm">
+                                    {pipelineStatus.progress ?? 0}%
+                                </div>
+                            </div>
 
-                        {/* Progress Bar */}
-                        <div className="w-full bg-white/5 rounded-full h-4 mb-8 overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pipelineStatus.progress}%` }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 transition-all duration-500"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {(pipelineStatus.stages?.length > 0 ? pipelineStatus.stages : [
-                                { id: 'deduplication', label: 'Deduplication', status: 'pending' },
-                                { id: 'scraping', label: 'Deep Scraping', status: 'pending' },
-                                { id: 'translation', label: 'Multi-Lingual Translation', status: 'pending' },
-                                { id: 'summarization', label: 'AI Summarization', status: 'pending' },
-                                { id: 'keywords', label: 'Keyword Extraction', status: 'pending' },
-                                { id: 'ner', label: 'Named Entity Recognition', status: 'pending' },
-                                { id: 'location', label: 'Geo-Location Mapping', status: 'pending' },
-                                { id: 'sentiment', label: 'Sentiment Analysis', status: 'pending' }
-                            ]).map((stage, index) => {
-                                const isComplete = stage.status === 'completed';
-                                const isActive = stage.status === 'processing';
-                                const isError = stage.status === 'error';
-                                const isPending = stage.status === 'pending';
-
-                                const stageIcons = {
-                                    'deduplication': '🔍',
-                                    'scraping': '📄',
-                                    'translation': '🌐',
-                                    'summarization': '📝',
-                                    'keywords': '🔑',
-                                    'ner': '👥',
-                                    'location': '📍',
-                                    'sentiment': '😊'
-                                };
-
-                                return (
-                                    <motion.div
-                                        key={stage.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: index * 0.05 }}
-                                        className={`flex items-center gap-4 p-4 rounded-2xl transition-all border ${isComplete ? 'bg-green-500/10 border-green-500/20' :
-                                                isActive ? 'bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]' :
-                                                    isError ? 'bg-red-500/10 border-red-500/20' :
-                                                        'bg-white/5 border-white/5 opacity-60'
-                                            }`}
-                                    >
-                                        <div className="text-2xl">{stageIcons[stage.id] || '⚙️'}</div>
-                                        <div className="flex-1">
-                                            <p className={`font-bold text-sm ${isComplete ? 'text-green-400' :
-                                                    isActive ? 'text-indigo-300' :
-                                                        isError ? 'text-red-400' :
-                                                            'text-gray-500'
-                                                }`}>
-                                                {stage.label}
-                                            </p>
-                                        </div>
-                                        {isComplete && <CheckCircle size={18} className="text-green-500" />}
-                                        {isActive && <Loader2 size={18} className="animate-spin text-indigo-400" />}
-                                        {isError && <AlertCircle size={18} className="text-red-500" />}
-                                        {isPending && <Clock size={18} className="text-gray-600" />}
-                                    </motion.div>
-                                );
-                            })}
+                            <div className="w-full bg-white/5 rounded-full h-3 mt-8 overflow-hidden">
+                                <motion.div
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${pipelineStatus.progress ?? 0}%` }}
+                                    className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 transition-all duration-500"
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -673,6 +671,36 @@ export default function ArticleDetail() {
                                 </motion.div>
                             );
                         })()}
+
+                        {/* Cleaned Content */}
+                        {analysisResults.content?.cleaned && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.55 }}
+                                className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md"
+                            >
+                                <h4 className="text-2xl font-black text-white mb-6">📄 Cleaned Content</h4>
+                                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                    {analysisResults.content.cleaned}
+                                </p>
+                            </motion.div>
+                        )}
+
+                        {/* Full backend response (everything) */}
+                        {analysisRaw && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.6 }}
+                                className="p-8 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-md"
+                            >
+                                <h4 className="text-2xl font-black text-white mb-6">🧾 Full Backend Response</h4>
+                                <pre className="text-xs text-gray-300 overflow-x-auto bg-black/30 p-4 rounded-2xl border border-white/10">
+                                    {JSON.stringify(analysisRaw, null, 2)}
+                                </pre>
+                            </motion.div>
+                        )}
                     </div>
                 )}
 
