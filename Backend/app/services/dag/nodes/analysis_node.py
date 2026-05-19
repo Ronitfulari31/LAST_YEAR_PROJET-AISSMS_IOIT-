@@ -174,8 +174,9 @@ class SentimentNode(ProcessingNode):
         super().__init__("SentimentAnalysis")
 
     def _process(self, context: dict) -> dict:
-        # 🧠 FIX 3: Idempotency Guard
-        if context.get("sentiment") and context["sentiment"].get("method") != "uninitialized":
+        # 🧠 FIX 3: Idempotency Guard — check "label" key (MongoDB schema)
+        existing_sent = context.get("existing_sentiment") or {}
+        if existing_sent.get("label") not in [None, "pending", "unknown", "neutral"] and existing_sent.get("method") != "uninitialized":
             logger.info("Sentiment already analyzed. Skipping.")
             return context
 
@@ -196,7 +197,7 @@ class SentimentNode(ProcessingNode):
         )
         
         new_sentiment = {
-            "sentiment": result.get("value", "neutral"),
+            "label": result.get("value", "neutral"),   # ← matches MongoDB schema
             "confidence": result.get("confidence", 0.0),
             "method": result.get("status", "unknown"),
             "scores": result.get("raw_scores", {}),
@@ -206,6 +207,6 @@ class SentimentNode(ProcessingNode):
         # COMPETITIVE MERGING: Keep existing if more confident
         existing = context.get("existing_sentiment") or {}
         existing_conf = existing.get("confidence", 0.0) if isinstance(existing, dict) else 0.0
-        
+
         context["sentiment"] = new_sentiment if result["confidence"] >= existing_conf else existing
         return context

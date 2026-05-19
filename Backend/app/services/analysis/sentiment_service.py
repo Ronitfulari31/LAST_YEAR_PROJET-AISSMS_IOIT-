@@ -57,27 +57,28 @@ class SentimentService:
             self._roberta_v2_attempted = True
 
         try:
-            logger.info("Loading RoBERTa-base V2 model (Tier 1 GPU)...")
-            # Using latest CardiffNLP model which has full safetensors support
-            model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest" 
-            
-            if self.device != "cuda":
-                raise RuntimeError("GPU not available for V2 Mandate")
+            logger.info("Loading RoBERTa-base V2 model (Tier 1)...")
+            model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
             self.roberta_v2_tokenizer = AutoTokenizer.from_pretrained(model_name)
-            
-            logger.info("Loading RoBERTa to CPU first (bypassing meta tensors)...")
+
+            logger.info("Loading RoBERTa model...")
             model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
                 use_safetensors=True,
                 torch_dtype=torch.float32,
                 low_cpu_mem_usage=False
             )
-            
-            logger.info("Moving RoBERTa to CUDA and Quantizing to FP16...")
-            self.roberta_v2_model = model.to(self.device).half().eval() 
+
+            if self.device == "cuda":
+                logger.info("Moving RoBERTa to CUDA and quantizing to FP16...")
+                self.roberta_v2_model = model.to(self.device).half().eval()
+            else:
+                logger.warning("GPU not available. Running RoBERTa on CPU (slower).")
+                self.roberta_v2_model = model.to("cpu").eval()
+
             self.roberta_v2_available = True
-            logger.info("RoBERTa V2 loaded successfully on GPU.")
+            logger.info(f"RoBERTa V2 loaded successfully on {self.device}.")
 
         except Exception as e:
             logger.error(f"Failed to load RoBERTa V2: {e}")
@@ -93,24 +94,25 @@ class SentimentService:
         try:
             logger.info("Loading BERTweet V1 model (Tier 3)...")
             model_name = "finiteautomata/bertweet-base-sentiment-analysis"
-            
-            if self.device != "cuda":
-                raise RuntimeError("GPU not available for V1 Safety Net Mandate")
 
             self.bertweet_tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-            
-            logger.info("Loading BERTweet to CPU first (bypassing meta tensors)...")
+
+            logger.info("Loading BERTweet model...")
             model = AutoModelForSequenceClassification.from_pretrained(
                 model_name,
-                use_safetensors=True,
                 torch_dtype=torch.float32,
                 low_cpu_mem_usage=False
             )
-            
-            logger.info("Moving BERTweet to CUDA and Quantizing to FP16...")
-            self.bertweet_model = model.to(self.device).half().eval()
+
+            if self.device == "cuda":
+                logger.info("Moving BERTweet to CUDA and quantizing to FP16...")
+                self.bertweet_model = model.to(self.device).half().eval()
+            else:
+                logger.warning("GPU not available. Running BERTweet on CPU (slower).")
+                self.bertweet_model = model.to("cpu").eval()
+
             self.bertweet_available = True
-            logger.info("BERTweet V1 loaded successfully on GPU.")
+            logger.info(f"BERTweet V1 loaded successfully on {self.device}.")
 
         except Exception as e:
             logger.error(f"Failed to load BERTweet V1: {e}")
@@ -127,12 +129,13 @@ class SentimentService:
     # Sentiment Engines
     # ---------------------------------------------------------
     def analyze_with_v2_local(self, text: str) -> Dict | None:
-        """TIER 1: Local V2 (RoBERTa-large) GPU-only"""
+        """TIER 1: Local V2 (RoBERTa-base) – GPU preferred, CPU fallback"""
         try:
             self._load_roberta_v2()
+            device = self.device if self.roberta_v2_available and self.device == "cuda" else "cpu"
             inputs = self.roberta_v2_tokenizer(
                 text, return_tensors="pt", truncation=True, max_length=512
-            ).to(self.device)
+            ).to(device)
 
             with torch.no_grad():
                 outputs = self.roberta_v2_model(**inputs)
@@ -159,12 +162,13 @@ class SentimentService:
             return None
 
     def analyze_with_v1_local(self, text: str) -> Dict | None:
-        """TIER 3: Local V1 (BERTweet) GPU-only Safety Net"""
+        """TIER 3: Local V1 (BERTweet) – GPU preferred, CPU fallback"""
         try:
             self._load_bertweet()
+            device = self.device if self.bertweet_available and self.device == "cuda" else "cpu"
             inputs = self.bertweet_tokenizer(
                 text, return_tensors="pt", truncation=True, max_length=128
-            ).to(self.device)
+            ).to(device)
 
             with torch.no_grad():
                 outputs = self.bertweet_model(**inputs)
